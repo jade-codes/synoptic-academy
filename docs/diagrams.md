@@ -1,113 +1,55 @@
 # Architecture Diagrams
 
-Visual references for the key concepts and flows across Synoptic Group. These diagrams are intended for implementers picking up issues cold.
+Visual references for implementers picking up issues. Each diagram is a standalone SVG file in `docs/img/` — click the link to view it rendered on GitHub.
 
 ---
 
 ## 1. Trust Manifold Geometry
 
-The geometric intuition behind GoT. Aligned value directions (trust, care, autonomy) cluster on or near the trust manifold M with near-zero geodesic distance. Misaligned directions (harm, deception, and a "trust" direction that is actually inconsistent) are scattered far from M and incoherent with each other. The drift arrow shows how value shift during fine-tuning can be modelled as parallel transport along M.
+**File:** [docs/img/trust-manifold.svg](img/trust-manifold.svg)
 
-```mermaid
-graph TD
-    subgraph space["Phi-weighted representation space"]
-        subgraph M["Trust manifold M — mutually consistent value directions"]
-            trust["trust ●"]
-            care["care ●"]
-            autonomy["autonomy ●"]
-        end
-        subgraph misaligned["Misaligned directions — far from M"]
-            harm["harm ●"]
-            deception["deception ●"]
-            fake_trust["'trust'? ●"]
-        end
-    end
+**What it shows:**
 
-    harm -->|"geodesic distance d"| M
-    deception -->|"geodesic distance d"| M
-    fake_trust -->|inconsistent| harm
+The geometric intuition behind GoT. The curved green band is the trust manifold M — the subspace of the Phi-weighted representation space where value directions are mutually consistent and coherent with alignment.
 
-    trust -->|"value drift — parallel transport"| care
-```
+- Green dots (trust, care, autonomy) sit on or near M. Their geodesic distance to the manifold is close to zero. This is what an aligned model looks like geometrically.
+- Red dots (harm, deception, a "trust" direction that is actually inconsistent with itself) are scattered far from M. The dashed red lines show their geodesic distance to the manifold. They are also inconsistent with each other — the arrow between them shows internal incoherence.
+- The orange dashed arrow shows value drift modelled as parallel transport along M. This is the mechanism for tracking how a model's value directions shift during fine-tuning — a direction can move along the manifold (drift) or fall off it entirely (misalignment).
 
-**Key properties:**
-- Aligned model: all value directions on or near M, geodesic distance ≈ 0
-- Misaligned model: value directions scattered, mutually inconsistent, geodesic distance d > threshold
-- Value drift: modelled as parallel transport along M — direction changes but stays on manifold vs. falls off
+**Why this matters for implementers:**
 
-**Open questions from research doc:**
-- Is M locally flat, positively curved, or negatively curved in practice?
-- Can we empirically measure parallel transport drift between a base model and its RLHF fine-tune?
+When writing the linear probe and computing manifold distances, this diagram is the ground truth for what "good" looks like. A probe result where trust, care, and autonomy are tightly clustered near M and harm/deception are far from it means the Phi computation is working. If they are all scattered, the inner product implementation is probably wrong.
 
 ---
 
-## 2. Four Rs Applied to GoT Rust PoC
+## 2. Four Rs Applied to the GoT Rust PoC
 
-The Four Rs methodology (Rapid → Rigour → Refactor → Repeat) applied specifically to the GoT proof-of-concept development cycle. Each exit condition is defined in terms of the actual GoT work, not generic software milestones. The centre shows what stays constant across iterations.
+**File:** [docs/img/four-rs-got.svg](img/four-rs-got.svg)
 
-```mermaid
-flowchart LR
-    R1["**Rapid**\nPrototype without rigour\nGet Phi computing, any shape"]
-    R2["**Rigour**\nIntentional design\nDefine GoT core API properly"]
-    R3["**Refactor**\nValidate with tests\nCompare Phi vs numpy reference"]
-    R4["**Repeat**\nNext concept / probe\nExpand GoT coverage"]
+**What it shows:**
 
-    INV["**Invariants**\nARCHITECTURE.md\nTODO.md context\nClaude Sonnet pair"]
+The Four Rs development methodology (Rapid → Rigour → Refactor → Repeat) applied specifically to the GoT proof-of-concept. Each stage has a specific exit condition defined in terms of the actual GoT work, not generic milestones. The amber centre box shows what stays constant across all four stages.
 
-    R1 -->|"Phi computes end-to-end"| R2
-    R2 -->|"API solid, tests written"| R3
-    R3 -->|"probe validated vs numpy"| R4
-    R4 -->|"next concept"| R1
+- **Rapid:** Get Phi computing end-to-end. Do not worry about correctness, performance, or API design. Exit when Phi = U^T U produces output of any kind.
+- **Rigour:** Design the GoT core API properly — what does the public interface look like? What types does it expose? Exit when the API is solid enough that tests can be written against it.
+- **Refactor:** Validate the implementation against the numpy reference. This is not "clean up the code" — it is the moment of truth. Exit when the Rust Phi output matches the numpy reference within acceptable tolerance.
+- **Repeat:** Pick the next concept (e.g. add `care` direction after `trust` is validated) and go around again.
 
-    INV -. "held constant" .-> R1
-    INV -. "held constant" .-> R2
-    INV -. "held constant" .-> R3
-    INV -. "held constant" .-> R4
-```
-
-**How to apply this when picking up a GoT issue:**
-1. Start in Rapid — get something running, ignore edge cases
-2. Move to Rigour only when the prototype proves the approach works
-3. Refactor means validating against the numpy reference implementation, not just "cleaning up"
-4. Repeat means the next concept (e.g. add `care` direction after `trust` is validated)
+The amber invariants in the centre (ARCHITECTURE.md, TODO.md, Claude Sonnet pair) are the context anchors that carry meaning across iterations. Do not let these drift — they are what allows AI-assisted development to stay coherent across sessions.
 
 ---
 
-## 3. GoT → Cognitiv Integration Points
+## 3. GoT to Cognitiv Integration Points
 
-Maps the four specific points where GoT research feeds into Cognitiv products, and the feedback loop where real-world Cognitiv failures feed back into GoT research spikes. This is the relationship described in `cognitiv-tools.md` under "GoT Integration Point".
+**File:** [docs/img/got-cognitiv-integration.svg](img/got-cognitiv-integration.svg)
 
-```mermaid
-flowchart LR
-    subgraph got["GoT research"]
-        manifold["Trust manifold M\nValue directions + Phi"]
-        probe["Value alignment probe\nPer-concept score"]
-        deception["Deception detection\nSelf-inconsistency flag"]
-        api["GoT API\nPOST /v1/probe"]
-    end
+**What it shows:**
 
-    subgraph cognitiv["Cognitiv products"]
-        dashboard["Sensemaking dashboard\nGroup epistemic state"]
-        divergence["Divergence API\nEpistemic distance"]
-        hidden["Hidden value divergence\nSurface consensus check"]
-        selfcheck["Self-inconsistency check\nPer-viewpoint flag"]
-    end
+The four specific points where GoT research feeds into Cognitiv products, and the feedback loop where real-world Cognitiv results feed back into GoT research spikes.
 
-    manifold -->|"value direction coherence"| dashboard
-    probe -->|"per-concept score"| divergence
-    deception -->|"hidden divergence signal"| hidden
-    api -->|"POST /v1/probe per viewpoint"| selfcheck
+- **Trust manifold M → Sensemaking dashboard:** The dashboard can ask whether a group's collective value directions are coherent with each other, or whether there is hidden divergence masked by surface-level agreement. This uses the same Phi-weighted geometry as the GoT probe.
+- **Value alignment probe → Divergence API:** The divergence API receives a per-concept alignment score for each viewpoint, enabling it to go beyond surface topic similarity to epistemic distance.
+- **Deception detection → Hidden value divergence:** The self-inconsistency flag from the GoT deception probe surfaces cases where a viewpoint claims values it does not reflect in its reasoning.
+- **GoT API → Self-inconsistency check:** The Cognitiv pipeline calls POST /v1/probe once per viewpoint and uses the result to flag viewpoints that are internally misaligned.
 
-    cognitiv -->|"real-world failure modes\nfeed back into research spikes"| got
-```
-
-**What this means in practice:**
-- The sensemaking dashboard can ask: are this group's value directions coherent, or is there hidden divergence masked by surface-level agreement?
-- The divergence API can call GoT to flag when a viewpoint claims values it does not reflect in its reasoning (deception signal)
-- Cognitiv client sessions will surface failure modes (e.g. GoT probe unreliable for certain text types) that feed directly back into GoT research spikes 2 and 3
-
----
-
-## Diagram notes
-
-These diagrams use Mermaid syntax and render natively on GitHub. To view locally, use the Mermaid Live Editor at [mermaid.live](https://mermaid.live) or install the Mermaid VS Code extension.
+The dashed feedback arrow at the bottom is the most important part of this diagram for research prioritisation. When Cognitiv client sessions surface failure cases — texts where the GoT probe gives unreliable results — those cases feed directly back into GoT research spikes 2 (failure modes) and 3 (relationship to existing interpretability frameworks). This is the mechanism by which applied product work keeps the research honest.
